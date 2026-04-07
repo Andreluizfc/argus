@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@layer base {
+  body {
+    @apply bg-zinc-900 text-zinc-100 antialiased;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+}
+
+@layer utilities {
+  .prose-chat {
+    line-height: 1.75;
+    font-size: 0.9375rem;
+  }
+  .prose-chat p {
+    margin-bottom: 1rem;
+  }
+  .prose-chat p:last-child {
+    margin-bottom: 0;
+  }
+  .prose-chat ul,
+  .prose-chat ol {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+  }
+  .prose-chat li {
+    margin-bottom: 0.25rem;
+  }
+  .prose-chat h1,
+  .prose-chat h2,
+  .prose-chat h3 {
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .prose-chat h1 {
+    font-size: 1.25rem;
+  }
+  .prose-chat h2 {
+    font-size: 1.125rem;
+  }
+  .prose-chat h3 {
+    font-size: 1rem;
+  }
+  .prose-chat strong {
+    font-weight: 600;
+    color: #f4f4f5;
+  }
+  .prose-chat a {
+    color: #60a5fa;
+    text-decoration: underline;
+  }
+  .prose-chat blockquote {
+    border-left: 3px solid #3f3f46;
+    padding-left: 1rem;
+    color: #a1a1aa;
+    margin: 1rem 0;
+  }
+  .prose-chat hr {
+    border-color: #27272a;
+    margin: 1.5rem 0;
+  }
+
+  /* KaTeX dark theme overrides */
+  .katex {
+    color: #e4e4e7;
+    font-size: 1.05em;
+  }
+  .katex-display {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    background: rgba(39, 39, 42, 0.5);
+    border-radius: 0.5rem;
+    overflow-x: auto;
+  }
+  .katex-display > .katex {
+    color: #f4f4f5;
+  }
+
+  @keyframes thinking-dot {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+  .thinking-dot:nth-child(1) { animation: thinking-dot 1.4s infinite 0s; }
+  .thinking-dot:nth-child(2) { animation: thinking-dot 1.4s infinite 0.2s; }
+  .thinking-dot:nth-child(3) { animation: thinking-dot 1.4s infinite 0.4s; }
+}

@@ -1,0 +1,32 @@
+services:
+  agno-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: argus-agno
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/agents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      - ARGUS_OLLAMA_HOST=http://host.docker.internal:11434
+      - ARGUS_DATABASE_PATH=/app/data/agno.db
+      - AGNO_TELEMETRY=false
+    volumes:
+      - ./data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: argus-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      agno-app:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=http://localhost:8000
