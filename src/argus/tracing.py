@@ -1,8 +1,7 @@
 """Langfuse tracing for Argus.
 
-Uses Langfuse's REST ingestion API directly (not OTel)
-because the OTel BatchSpanProcessor has reliability issues
-with connection caching during Docker container startup.
+Uses Langfuse's REST ingestion API to create traces and
+generation observations with token usage metrics.
 """
 
 import datetime
@@ -41,7 +40,6 @@ def init_tracing() -> None:
 
     _auth = (public_key, secret_key)
 
-    # Verify connection
     try:
         resp = requests.get(
             f"{_base_url}/api/public/traces?limit=1",
@@ -59,46 +57,116 @@ def init_tracing() -> None:
         logger.warning("Langfuse not reachable — tracing disabled")
 
 
+def get_langfuse_enabled() -> bool:
+    """Check if Langfuse tracing is active."""
+    return _enabled
+
+
 def trace_request(
     name: str,
     input_text: str,
     output_text: str,
     duration_ms: float,
+    token_metrics: dict | None = None,
     metadata: dict | None = None,
 ) -> str | None:
-    """Create a Langfuse trace via REST ingestion API."""
+    """Create a Langfuse trace + generation with token usage.
+
+    Args:
+        name: Trace name (e.g. "teams/content-team").
+        input_text: User message or request description.
+        output_text: Agent response or status.
+        duration_ms: Total request duration in ms.
+        token_metrics: Token usage dict from Agno response
+            metrics (input_tokens, output_tokens, etc).
+        metadata: Additional metadata dict.
+    """
     if not _enabled:
         return None
 
     trace_id = str(uuid.uuid4())
+    generation_id = str(uuid.uuid4())
     now = datetime.datetime.now(
         tz=datetime.UTC,
     ).isoformat()
 
-    payload = {
-        "batch": [
-            {
-                "id": str(uuid.uuid4()),
-                "type": "trace-create",
-                "timestamp": now,
-                "body": {
-                    "id": trace_id,
-                    "name": name,
-                    "input": input_text,
-                    "output": output_text,
-                    "metadata": {
-                        **(metadata or {}),
-                        "duration_ms": round(duration_ms, 2),
-                    },
+    metrics = token_metrics or {}
+    model_details = {}
+    if metrics.get("details", {}).get("model"):
+        model_details = metrics["details"]["model"][0]
+
+    model_name = model_details.get("id", "unknown")
+    input_tokens = metrics.get("input_tokens", 0)
+    output_tokens = metrics.get("output_tokens", 0)
+    total_tokens = metrics.get("total_tokens", 0)
+    ttft = metrics.get("time_to_first_token")
+
+    # Provider-level metrics (Ollama internals)
+    provider_metrics = model_details.get("provider_metrics", {})
+
+    batch = [
+        # 1. Create trace
+        {
+            "id": str(uuid.uuid4()),
+            "type": "trace-create",
+            "timestamp": now,
+            "body": {
+                "id": trace_id,
+                "name": name,
+                "input": input_text,
+                "output": output_text,
+                "metadata": {
+                    **(metadata or {}),
+                    "duration_ms": round(duration_ms, 2),
                 },
             },
-        ],
-    }
+        },
+        # 2. Create generation with token usage
+        {
+            "id": str(uuid.uuid4()),
+            "type": "generation-create",
+            "timestamp": now,
+            "body": {
+                "id": generation_id,
+                "traceId": trace_id,
+                "name": f"{name}/generation",
+                "model": model_name,
+                "modelParameters": {
+                    "provider": model_details.get(
+                        "provider", "Ollama"
+                    ),
+                },
+                "input": input_text,
+                "output": output_text,
+                "usage": {
+                    "input": input_tokens,
+                    "output": output_tokens,
+                    "total": total_tokens,
+                },
+                "metadata": {
+                    "time_to_first_token_s": ttft,
+                    "duration_ms": round(duration_ms, 2),
+                    "ollama_total_duration_ns": (
+                        provider_metrics.get("total_duration")
+                    ),
+                    "ollama_load_duration_ns": (
+                        provider_metrics.get("load_duration")
+                    ),
+                    "ollama_prompt_eval_ns": (
+                        provider_metrics.get("prompt_eval_duration")
+                    ),
+                    "ollama_eval_ns": (
+                        provider_metrics.get("eval_duration")
+                    ),
+                },
+            },
+        },
+    ]
 
     try:
         requests.post(
             f"{_base_url}/api/public/ingestion",
-            json=payload,
+            json={"batch": batch},
             auth=_auth,
             timeout=5,
         )
