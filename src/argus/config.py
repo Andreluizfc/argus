@@ -29,5 +29,8 @@ class Settings(BaseSettings):
     max_history_runs: int = 5
     stream_responses: bool = True
 
+    # Langfuse observability
+    langfuse_enabled: bool = True
+
 
 settings = Settings()

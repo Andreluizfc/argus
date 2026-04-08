@@ -47,3 +47,6 @@ frontend/.vite/
 # uv
 .python-version
 uv.lock
+
+# Langfuse (Docker volumes managed by compose, not tracked)
+langfuse/.env
